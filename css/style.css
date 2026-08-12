@@ -359,6 +359,22 @@ tbody tr:hover { background: #f6f9fd; }
 .empty { text-align: center; color: var(--text-muted); padding: 28px 12px; font-size: 0.9rem; }
 .empty .big { font-size: 2rem; display: block; margin-bottom: 6px; }
 
+/* ---------- Admin / Gestão ---------- */
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.card-head h2 { margin-bottom: 0; }
+.list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.sub { font-size: 0.9rem; color: var(--primary); margin: 16px 0 8px; }
+.sub:first-child { margin-top: 0; }
+
 /* ---------- Responsive ---------- */
 @media (min-width: 760px) {
   .modal { border-radius: 16px; margin-bottom: 40px; }

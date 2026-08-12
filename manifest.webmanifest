@@ -1,7 +1,7 @@
 {
-  "name": "Controle.Cart — Controle do Cartório",
-  "short_name": "Controle.Cart",
-  "description": "Agenda de atendimento, planilha de protocolos e prazos, e monitoramento de e-mails do cartório.",
+  "name": "CartoMetrics — Métricas do Cartório",
+  "short_name": "CartoMetrics",
+  "description": "Agenda de atendimento, planilha de protocolos e prazos, monitoramento de e-mails e relatórios de performance do cartório.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

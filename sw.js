@@ -1,4 +1,4 @@
-const CACHE = "controle-cart-v2";
+const CACHE = "controle-cart-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -9,6 +9,7 @@ const ASSETS = [
   "./js/agenda.js",
   "./js/planilha.js",
   "./js/email.js",
+  "./js/admin.js",
   "./js/app.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",

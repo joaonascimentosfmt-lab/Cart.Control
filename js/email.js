@@ -220,4 +220,5 @@
   }
 
   window.renderEmail = renderEmail;
+  window.getAllEmail = getAll;
 })();

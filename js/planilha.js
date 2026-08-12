@@ -227,4 +227,5 @@
   }
 
   window.renderPlanilha = renderPlanilha;
+  window.getAllPlanilha = getAll;
 })();

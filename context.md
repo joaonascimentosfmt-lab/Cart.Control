@@ -1,8 +1,8 @@
-# Controle.Cart — Contexto e Arquitetura
+# CartoMetrics — Contexto e Arquitetura
 
 ## 1. Contexto
 
-O **Controle.Cart** é uma plataforma de gestão interna para cartórios. A necessidade nasceu do
+O **CartoMetrics** é uma plataforma de gestão interna para cartórios. A necessidade nasceu do
 cotidiano operacional de uma serventia extrajudicial, que convive com três tarefas recorrentes
 e, hoje, executadas de forma manual e dispersa:
 
@@ -67,7 +67,8 @@ Controle.Cart/
     ├── storage.js        # Camada de persistência + helpers de data
     ├── agenda.js         # Módulo Agenda (render + modal + CRUD)
     ├── planilha.js       # Módulo Planilha (tabela + CRUD + status)
-    └── email.js          # Módulo E-mails (monitor + CRUD + alertas)
+    ├── email.js          # Módulo E-mails (monitor + CRUD + alertas)
+    └── admin.js          # Módulo Gestão (funcionários, setores, relatórios)
 ```
 
 ### Decisões de arquitetura

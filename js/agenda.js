@@ -248,4 +248,5 @@
 
   window.renderAgenda = renderAgenda;
   window.toast = toast;
+  window.getAllAgenda = getAll;
 })();

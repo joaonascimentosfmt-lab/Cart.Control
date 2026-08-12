@@ -7,6 +7,7 @@
     agenda: () => renderAgenda(view, store.todayISO()),
     planilha: () => renderPlanilha(view),
     email: () => renderEmail(view),
+    admin: () => renderAdmin(view),
   };
 
   function navigate() {
