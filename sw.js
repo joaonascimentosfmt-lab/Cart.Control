@@ -1,14 +1,15 @@
-const CACHE = "controle-cart-v1";
+const CACHE = "controle-cart-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./css/style.css",
-  "./js/app.js",
+  "./js/icons.js",
   "./js/storage.js",
   "./js/agenda.js",
   "./js/planilha.js",
   "./js/email.js",
+  "./js/app.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

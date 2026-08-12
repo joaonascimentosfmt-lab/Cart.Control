@@ -42,7 +42,8 @@ Stack exclusivamente **front-end** para validar o produto com rapidez:
 | Camada | Tecnologia |
 |---|---|
 | Interface | HTML5 semântico + CSS3 (variáveis, grid, responsivo) |
-| Lógica | JavaScript ES Modules (nativo, sem framework) |
+| Lógica | JavaScript clássico (IIFE por módulo, sem framework, sem bundler) |
+| Ícones | SVG inline via sprite (`<symbol>` + `<use>`) no `index.html` e helper `js/icons.js` |
 | Persistência | `localStorage` (dados por dispositivo) |
 | PWA | `manifest.webmanifest` + Service Worker (`sw.js`) + ícones PNG/SVG |
 | Roteamento | Hash routing (`#/agenda`, `#/planilha`, `#/email`) |
@@ -61,6 +62,7 @@ Controle.Cart/
 ├── css/
 │   └── style.css         # Design system + telas
 └── js/
+    ├── icons.js          # Helper `icon()` → `<svg><use>` da sprite
     ├── app.js            # Bootstrap, roteamento, online/offline
     ├── storage.js        # Camada de persistência + helpers de data
     ├── agenda.js         # Módulo Agenda (render + modal + CRUD)
@@ -72,6 +74,14 @@ Controle.Cart/
 
 - **SPA com hash routing**: cada módulo é uma função de render sobre a mesma `#view`,
   trocando o conteúdo conforme a rota — simples e compatível com o Service Worker.
+- **Scripts clássicos (IIFE) em vez de ES Modules**: permite abrir o `index.html`
+  diretamente pelo sistema de arquivos (`file://`) sem servidor — ES Modules são bloqueados
+  nesse cenário. Cada módulo envolto em IIFE e expõe apenas o necessário em `window`
+  (evita colisão de nomes globais, ex.: `seed`). A ordem de carregamento em `index.html`
+  importa: `icons.js` → `storage.js` → `agenda.js` → `planilha.js` → `email.js` → `app.js`.
+- **Ícones como sprite SVG**: símbolos (`<symbol>`) definidos no `index.html` e reutilizados
+  via `<svg><use>` — sem emojis, com cor herdada de `currentColor` e helper `icon()` em
+  `js/icons.js` para uso nos templates.
 - **`localStorage` como banco**: suficiente para o MVP; a camada `storage.js` centraliza
   leitura/escrita, permitindo trocar por `IndexedDB` ou API remota sem refazer as telas.
 - **Dados de exemplo (seed)**: na primeira execução cada módulo popula dados fictícios
