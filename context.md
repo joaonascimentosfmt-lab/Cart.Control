@@ -44,15 +44,15 @@ Stack exclusivamente **front-end** para validar o produto com rapidez:
 | Interface | HTML5 semântico + CSS3 (variáveis, grid, responsivo) |
 | Lógica | JavaScript clássico (IIFE por módulo, sem framework, sem bundler) |
 | Ícones | SVG inline via sprite (`<symbol>` + `<use>`) no `index.html` e helper `js/icons.js` |
-| Persistência | `localStorage` (dados por dispositivo) |
+| Persistência | `localStorage` (camada relacional `db` + helpers de data) |
 | PWA | `manifest.webmanifest` + Service Worker (`sw.js`) + ícones PNG/SVG |
-| Roteamento | Hash routing (`#/agenda`, `#/planilha`, `#/email`) |
+| Roteamento | Hash routing (`#/dashboard`, `#/protocols`, `#/agenda`, ...) |
 
 ### Estrutura de arquivos
 
 ```
 Controle.Cart/
-├── index.html            # Shell da SPA (header, view, navegação)
+├── index.html            # Shell (sidebar + topbar + view + sprite SVG)
 ├── manifest.webmanifest  # Metadados PWA (instalação)
 ├── sw.js                 # Service Worker (cache offline + atualização)
 ├── icons/
@@ -60,15 +60,22 @@ Controle.Cart/
 │   ├── icon-192.png      # Ícone PWA 192x192
 │   └── icon-512.png      # Ícone PWA 512x512
 ├── css/
-│   └── style.css         # Design system + telas
+│   └── style.css         # Design system corporativo (sidebar + telas)
 └── js/
     ├── icons.js          # Helper `icon()` → `<svg><use>` da sprite
-    ├── app.js            # Bootstrap, roteamento, online/offline
-    ├── storage.js        # Camada de persistência + helpers de data
-    ├── agenda.js         # Módulo Agenda (render + modal + CRUD)
-    ├── planilha.js       # Módulo Planilha (tabela + CRUD + status)
-    ├── email.js          # Módulo E-mails (monitor + CRUD + alertas)
-    └── admin.js          # Módulo Gestão (funcionários, setores, relatórios)
+    ├── storage.js        # store (`localStorage`) + `db` (tabelas) + helpers de data/prazo
+    ├── core.js           # Regra de negócio: protocolos, tarefas, clientes, e-mails, indicadores, alertas, auditoria (camada de serviço)
+    ├── ui.js             # Helpers de UI: modal, toast, confirma, notificações, busca global
+    ├── app.js            # Bootstrap, roteamento, sidebar, permissões (RBAC)
+    ├── dashboard.js      # Dashboard + central de alertas + produtividade
+    ├── protocols.js      # Protocolos (lista + detalhe + tarefas + histórico + e-mails vinculados)
+    ├── tasks.js          # Tarefas (visão global)
+    ├── clients.js        # Clientes / Partes
+    ├── emails.js         # Central de e-mails (categorias + vínculo a protocolo)
+    ├── agenda.js         # Agenda (slots diários)
+    ├── reports.js        # Relatórios + exportação CSV
+    ├── audit.js          # Auditoria do sistema
+    └── admin.js          # Gestão (funcionários, setores, usuários/permissões, configurações)
 ```
 
 ### Decisões de arquitetura
@@ -79,12 +86,20 @@ Controle.Cart/
   diretamente pelo sistema de arquivos (`file://`) sem servidor — ES Modules são bloqueados
   nesse cenário. Cada módulo envolto em IIFE e expõe apenas o necessário em `window`
   (evita colisão de nomes globais, ex.: `seed`). A ordem de carregamento em `index.html`
-  importa: `icons.js` → `storage.js` → `agenda.js` → `planilha.js` → `email.js` → `app.js`.
+  importa: `icons.js` → `storage.js` → `core.js` → `ui.js` → módulos → `app.js`.
 - **Ícones como sprite SVG**: símbolos (`<symbol>`) definidos no `index.html` e reutilizados
   via `<svg><use>` — sem emojis, com cor herdada de `currentColor` e helper `icon()` em
   `js/icons.js` para uso nos templates.
-- **`localStorage` como banco**: suficiente para o MVP; a camada `storage.js` centraliza
-  leitura/escrita, permitindo trocar por `IndexedDB` ou API remota sem refazer as telas.
+- **Camada de dados relacional `db`**: `storage.js` expõe `db` com tabelas
+  (`protocols`, `tasks`, `clients`, `emails`, `appointments`, `history`, `audit`,
+  `notifications`) persistidas em `localStorage`, preparando a futura migração para
+  PostgreSQL/Supabase.
+- **Regra de negócio isolada em `core.js`** (camada de serviços): criação de protocolo
+  gera histórico + tarefa inicial + alerta; conclusão encerra tarefas e atualiza
+  indicadores; fiscalização automática (`checkAlerts`) e escalonamento; auditoria de ações
+  (`db.audit`). A interface apenas consome essa camada.
+- **Status de prazo calculado**: situação (`normal/atenção/urgente/vence hoje/atrasado/
+  concluído`) derivada da data-limite na hora da consulta, nunca armazenada como valor fixo.
 - **Dados de exemplo (seed)**: na primeira execução cada módulo popula dados fictícios
   marcados com flag `*_seeded`, para demonstração imediata.
 - **Status calculado vs. armazenado**: na Planilha o status de prazo é **calculado** a partir

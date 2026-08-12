@@ -1,285 +1,233 @@
 (function () {
-  function seed() {
-    if (store.get("admin_seeded", false)) return;
-    const setores = [
-      { id: store.uid(), nome: "Protocolo" },
-      { id: store.uid(), nome: "Registros Gerais" },
-      { id: store.uid(), nome: "Tabelionato" },
-    ];
-    const funcs = [
-      { id: store.uid(), nome: "Tabelião A", setor: setores[2].id, cargo: "Tabelião" },
-      { id: store.uid(), nome: "Escrevente B", setor: setores[0].id, cargo: "Escrevente" },
-      { id: store.uid(), nome: "Escrevente C", setor: setores[1].id, cargo: "Escrevente" },
-    ];
-    store.set("setores", setores);
-    store.set("funcionarios", funcs);
-    store.set("admin_seeded", true);
+  const PERFIS = [
+    { v: "admin", l: "Administrador" },
+    { v: "gestor", l: "Gestor" },
+    { v: "funcionario", l: "Funcionário" },
+    { v: "visualizacao", l: "Somente leitura" },
+  ];
+  const PERFIL_LABEL = Object.fromEntries(PERFIS.map((p) => [p.v, p.l]));
+
+  function seedUsuarios() {
+    if (store.get("usuarios", null)) return;
+    const staff = store.get("funcionarios", []);
+    store.set("usuarios", [
+      { id: store.uid(), nome: "Administrador", email: "admin@carto.com", perfil: "admin", ativo: true },
+      ...staff.map((f) => ({ id: "u" + f.id, nome: f.nome, email: f.email || "", perfil: f.cargo === "Tabelião" ? "gestor" : "funcionario", ativo: true })),
+    ]);
   }
 
-  function getSetores() {
-    seed();
-    return store.get("setores", []);
-  }
-
-  function getFuncionarios() {
-    seed();
-    return store.get("funcionarios", []);
-  }
-
-  function upsertFuncionario(f) {
-    const all = getFuncionarios();
-    const idx = all.findIndex((x) => x.id === f.id);
-    if (idx >= 0) all[idx] = f;
-    else all.push(f);
-    store.set("funcionarios", all);
-  }
-
-  function removeFuncionario(id) {
-    store.set("funcionarios", getFuncionarios().filter((x) => x.id !== id));
-  }
-
-  function upsertSetor(s) {
-    const all = getSetores();
-    const idx = all.findIndex((x) => x.id === s.id);
-    if (idx >= 0) all[idx] = s;
-    else all.push(s);
-    store.set("setores", all);
-  }
-
-  function removeSetor(id) {
-    store.set("setores", getSetores().filter((x) => x.id !== id));
-  }
-
-  function setorNome(id) {
-    const s = getSetores().find((x) => x.id === id);
-    return s ? s.nome : "-";
-  }
-
-  function renderAdmin(root) {
-    const setores = getSetores();
-    const funcs = getFuncionarios();
+  function renderStaff(root) {
+    const funcs = store.get("funcionarios", []);
+    const deps = db.all("departments");
     root.innerHTML = `
-      <h2 class="page-title">Gestão — Funcionários e Setores</h2>
+      <h2 class="page-title">Funcionários e Setores</h2>
 
       <div class="card">
-        <div class="card-head">
-          <h2>Setores</h2>
-          <button class="btn primary small" id="add-setor">${icon("plus")} Novo setor</button>
-        </div>
+        <div class="card-head"><h2>Setores</h2><button class="btn primary small" id="add-setor">${icon("plus")} Novo setor</button></div>
         <ul class="list" id="setores-list">
-          ${setores.map((s) => `
-            <li class="list-item">
-              <span>${esc(s.nome)}</span>
-              <div class="row-actions">
-                <button class="icon-btn" data-esetor="${s.id}" title="Editar">${icon("edit")}</button>
-                <button class="icon-btn" data-dsetor="${s.id}" title="Excluir">${icon("trash")}</button>
-              </div>
-            </li>`).join("")}
+          ${deps.map((s) => `<li class="list-item"><span>${esc(s.nome)}</span><div class="row-actions">
+            <button class="icon-btn" data-esetor="${s.id}">${icon("edit")}</button>
+            <button class="icon-btn" data-dsetor="${s.id}">${icon("trash")}</button></div></li>`).join("")}
         </ul>
       </div>
 
       <div class="card">
-        <div class="card-head">
-          <h2>Funcionários</h2>
-          <button class="btn primary small" id="add-func">${icon("plus")} Novo funcionário</button>
-        </div>
+        <div class="card-head"><h2>Funcionários</h2><button class="btn primary small" id="add-func">${icon("plus")} Novo funcionário</button></div>
         <ul class="list" id="funcs-list">
-          ${funcs.map((f) => `
-            <li class="list-item">
+          ${funcs.length === 0 ? `<div class="empty">Nenhum funcionário.</div>` : funcs.map((f) => {
+            const s = deps.find((d) => d.id === f.setor);
+            const prod = window.core.prodFuncionario().find((r) => r.f.id === f.id);
+            return `<li class="list-item">
               <div>
-                <div class="who">${esc(f.nome)}</div>
-                <div class="detail">${esc(f.cargo)} &middot; ${esc(setorNome(f.setor))}</div>
+                <div class="who">${esc(f.nome)} <span class="pill pill-sm">${esc(f.cargo)}</span></div>
+                <div class="detail">${esc(s ? s.nome : "-")}${prod ? " · Produtividade " + prod.indiceProdutividade + "%" : ""}</div>
               </div>
               <div class="row-actions">
-                <button class="icon-btn" data-efunc="${f.id}" title="Editar">${icon("edit")}</button>
-                <button class="icon-btn" data-dfunc="${f.id}" title="Excluir">${icon("trash")}</button>
+                <button class="icon-btn" data-efunc="${f.id}">${icon("edit")}</button>
+                <button class="icon-btn" data-dfunc="${f.id}">${icon("trash")}</button>
               </div>
-            </li>`).join("")}
+            </li>`;
+          }).join("")}
         </ul>
       </div>
 
-      <div class="card">
-        <div class="card-head">
-          <h2>Relatório de performance</h2>
-        </div>
-        <div id="report"></div>
-      </div>`;
+      <div class="card"><h2>Produtividade por setor</h2><div id="setor-prod"></div></div>`;
 
     root.querySelector("#add-setor").addEventListener("click", () => setorModal(null));
     root.querySelector("#add-func").addEventListener("click", () => funcModal(null));
-
     root.querySelector("#setores-list").addEventListener("click", (e) => {
       const ed = e.target.closest("[data-esetor]");
       const del = e.target.closest("[data-dsetor]");
-      if (ed) setorModal(setores.find((s) => s.id === ed.dataset.esetor));
-      if (del) {
-        if (confirm("Excluir este setor?")) {
-          removeSetor(del.dataset.dsetor);
-          renderAdmin(root);
-          toast("Setor excluído");
-        }
+      if (ed) setorModal(deps.find((d) => d.id === ed.dataset.esetor));
+      if (del && ui.confirmDialog("Excluir setor?")) {
+        db.remove("departments", del.dataset.dsetor);
+        db.write("funcionarios", store.get("funcionarios", [])); renderStaff(root);
+        ui.toast("Setor excluído");
       }
     });
-
     root.querySelector("#funcs-list").addEventListener("click", (e) => {
       const ed = e.target.closest("[data-efunc]");
       const del = e.target.closest("[data-dfunc]");
       if (ed) funcModal(funcs.find((f) => f.id === ed.dataset.efunc));
-      if (del) {
-        if (confirm("Excluir este funcionário?")) {
-          removeFuncionario(del.dataset.dfunc);
-          renderAdmin(root);
-          toast("Funcionário excluído");
-        }
+      if (del && ui.confirmDialog("Excluir funcionário?")) {
+        store.set("funcionarios", funcs.filter((f) => f.id !== del.dataset.dfunc));
+        ui.toast("Funcionário excluído"); renderStaff(root);
       }
     });
 
-    renderReports(root);
-  }
-
-  function renderReports(root) {
-    const funcs = getFuncionarios();
-    const setores = getSetores();
-    const planilhas = window.getAllPlanilha ? window.getAllPlanilha() : [];
-    const agendas = window.getAllAgenda ? window.getAllAgenda() : [];
-    const emails = window.getAllEmail ? window.getAllEmail() : [];
-
-    const byFunc = funcs.map((f) => {
-      const protos = planilhas.filter((p) => (p.responsavel || "").toLowerCase() === f.nome.toLowerCase());
-      const concluidos = protos.filter((p) => p.status === "finalizado").length;
-      const ativos = protos.length - concluidos;
-      const atendimentos = agendas.filter((a) => a.status === "concluido" && (a.name || "").toLowerCase().includes(f.nome.toLowerCase())).length;
-      return { f, protos: protos.length, concluidos, ativos, atendimentos };
-    });
-
-    const bySetor = setores.map((s) => {
-      const sFuncs = funcs.filter((f) => f.setor === s.id);
-      const protos = planilhas.filter((p) => sFuncs.some((f) => (p.responsavel || "").toLowerCase() === f.nome.toLowerCase()));
-      const concluidos = protos.filter((p) => p.status === "finalizado").length;
-      return { s, funcionarios: sFuncs.length, protos: protos.length, concluidos };
-    });
-
-    root.querySelector("#report").innerHTML = `
-      <h3 class="sub">Por funcionário</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Funcionário</th><th>Setor</th><th>Protocolos</th><th>Finalizados</th><th>Ativos</th><th>Atendimentos</th></tr></thead>
-          <tbody>
-            ${byFunc.map((r) => `
-              <tr>
-                <td><strong>${esc(r.f.nome)}</strong></td>
-                <td>${esc(setorNome(r.f.setor))}</td>
-                <td>${r.protos}</td>
-                <td>${r.concluidos}</td>
-                <td>${r.ativos}</td>
-                <td>${r.atendimentos}</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
-
-      <h3 class="sub">Por setor</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Setor</th><th>Funcionários</th><th>Protocolos</th><th>Finalizados</th></tr></thead>
-          <tbody>
-            ${bySetor.map((r) => `
-              <tr>
-                <td><strong>${esc(r.s.nome)}</strong></td>
-                <td>${r.funcionarios}</td>
-                <td>${r.protos}</td>
-                <td>${r.concluidos}</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>`;
+    const setorProd = core.prodSetor();
+    root.querySelector("#setor-prod").innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Setor</th><th>Funcionários</th><th>Protocolos</th><th>Concluídos</th><th>Atrasados</th></tr></thead>
+      <tbody>${setorProd.map((r) => `<tr><td><strong>${esc(r.d.nome)}</strong></td><td>${r.funcionarios}</td><td>${r.protocolos}</td><td>${r.concluidos}</td><td>${r.atrasados}</td></tr>`).join("")}</tbody>
+    </table></div>`;
   }
 
   function setorModal(existing) {
-    const s = existing || { id: store.uid(), nome: "" };
     const isNew = !existing;
-    const backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop";
-    backdrop.innerHTML = `
-      <div class="modal" role="dialog" aria-modal="true">
-        <h3>${isNew ? "Novo setor" : "Editar setor"}</h3>
-        <form class="form-grid" id="setor-form">
-          <input type="hidden" name="id" value="${s.id}">
-          <div class="form-field full">
-            <label>Nome do setor</label>
-            <input type="text" name="nome" value="${esc(s.nome)}" required>
-          </div>
-          <div class="form-field full actions">
-            <button type="button" class="btn ghost" data-close>Cancelar</button>
-            <button type="submit" class="btn primary">Salvar</button>
-          </div>
-        </form>
-      </div>`;
-    document.body.appendChild(backdrop);
-    const close = () => backdrop.remove();
-    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
-    backdrop.querySelector("[data-close]").addEventListener("click", close);
-    backdrop.querySelector("form").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      const nome = fd.get("nome").trim();
-      if (!nome) return;
-      upsertSetor({ id: fd.get("id"), nome });
-      close();
-      renderAdmin(document.getElementById("view"));
-      toast("Setor salvo");
-    });
+    const s = existing || { nome: "" };
+    ui.modal(`
+      <h3>${isNew ? "Novo setor" : "Editar setor"}</h3>
+      <form class="form-grid" id="setor-form">
+        <div class="form-field full"><label>Nome</label><input type="text" name="nome" value="${esc(s.nome)}" required></div>
+        <div class="form-field full actions"><button type="button" class="btn ghost" data-close>Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>
+      </form>`,
+      (fd, close) => {
+        if (isNew) { db.insert("departments", { id: store.uid(), nome: fd.get("nome").trim() }); db.audit(window.currentUser(), "criar_setor", fd.get("nome"), null, null); }
+        else { db.update("departments", s.id, { nome: fd.get("nome").trim() }); db.audit(window.currentUser(), "editar_setor", fd.get("nome"), null, null); }
+        close(); renderStaff(document.getElementById("view")); ui.toast("Setor salvo");
+      });
   }
 
   function funcModal(existing) {
-    const f = existing || { id: store.uid(), nome: "", setor: "", cargo: "" };
     const isNew = !existing;
-    const setores = getSetores();
-    const backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop";
-    backdrop.innerHTML = `
-      <div class="modal" role="dialog" aria-modal="true">
-        <h3>${isNew ? "Novo funcionário" : "Editar funcionário"}</h3>
-        <form class="form-grid" id="func-form">
-          <input type="hidden" name="id" value="${f.id}">
-          <div class="form-field full">
-            <label>Nome</label>
-            <input type="text" name="nome" value="${esc(f.nome)}" required>
+    const f = existing || { nome: "", cargo: "", setor: "", email: "" };
+    const deps = db.all("departments");
+    ui.modal(`
+      <h3>${isNew ? "Novo funcionário" : "Editar funcionário"}</h3>
+      <form class="form-grid" id="func-form">
+        <div class="form-field full"><label>Nome</label><input type="text" name="nome" value="${esc(f.nome)}" required></div>
+        <div class="form-field"><label>Cargo</label><input type="text" name="cargo" value="${esc(f.cargo)}" required></div>
+        <div class="form-field"><label>Setor</label><select name="setor"><option value="">—</option>${deps.map((d) => `<option value="${d.id}" ${d.id === f.setor ? "selected" : ""}>${esc(d.nome)}</option>`).join("")}</select></div>
+        <div class="form-field full"><label>E-mail</label><input type="email" name="email" value="${esc(f.email)}"></div>
+        <div class="form-field full actions"><button type="button" class="btn ghost" data-close>Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>
+      </form>`,
+      (fd, close) => {
+        const rec = { id: f.id || store.uid(), nome: fd.get("nome").trim(), cargo: fd.get("cargo").trim(), setor: fd.get("setor") || null, email: fd.get("email").trim(), status: "ativo" };
+        const all = store.get("funcionarios", []);
+        const idx = all.findIndex((x) => x.id === rec.id);
+        if (idx >= 0) all[idx] = rec; else all.push(rec);
+        store.set("funcionarios", all);
+        db.audit(window.currentUser(), isNew ? "criar_funcionario" : "editar_funcionario", rec.nome, null, null);
+        close(); renderStaff(document.getElementById("view")); ui.toast("Funcionário salvo");
+      });
+  }
+
+  function renderSettings(root) {
+    seedUsuarios();
+    const usuarios = store.get("usuarios", []);
+    const cfg = store.get("config", { nome: "Cartório Modelo", diasUteis: ["1", "2", "3", "4", "5"], feriados: [] });
+    root.innerHTML = `
+      <h2 class="page-title">Configurações</h2>
+
+      <div class="card">
+        <h2>Cartório</h2>
+        <form class="form-grid" id="cfg-form">
+          <div class="form-field full"><label>Nome do cartório</label><input type="text" name="nome" value="${esc(cfg.nome)}" required></div>
+          <div class="form-field full"><label>Dias de expediente</label>
+            <div class="chips">
+              ${["1|Seg", "2|Ter", "3|Qua", "4|Qui", "5|Sex", "6|Sáb", "0|Dom"].map((p) => { const [v, l] = p.split("|"); const on = cfg.diasUteis.includes(v); return `<label><input type="checkbox" name="dia" value="${v}" ${on ? "checked" : ""}> ${l}</label>`; }).join("")}
+            </div>
           </div>
-          <div class="form-field">
-            <label>Cargo</label>
-            <input type="text" name="cargo" value="${esc(f.cargo)}" required>
-          </div>
-          <div class="form-field">
-            <label>Setor</label>
-            <select name="setor" required>
-              <option value="">Selecione...</option>
-              ${setores.map((s) => `<option value="${s.id}" ${s.id === f.setor ? "selected" : ""}>${esc(s.nome)}</option>`).join("")}
-            </select>
-          </div>
-          <div class="form-field full actions">
-            <button type="button" class="btn ghost" data-close>Cancelar</button>
-            <button type="submit" class="btn primary">Salvar</button>
-          </div>
+          <div class="form-field full actions"><button type="submit" class="btn primary">Salvar</button></div>
         </form>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Usuários e permissões</h2><button class="btn primary small" id="user-add">${icon("plus")} Novo usuário</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th></th></tr></thead>
+            <tbody id="user-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Perfis e permissões</h2>
+        <div class="perm-grid">
+          ${PERFIS.map((p) => `
+            <div class="perm-card">
+              <strong>${p.l}</strong>
+              <div class="detail">
+                ${p.v === "admin" ? "Acesso total: todos os módulos, auditoria e configurações."
+                : p.v === "gestor" ? "Todos os protocolos, tarefas, relatórios e acompanhamento."
+                : p.v === "funcionario" ? "Protocolos/tarefas atribuídos, própria agenda e e-mails permitidos."
+                : "Somente leitura em módulos liberados."}
+              </div>
+            </div>`).join("")}
+        </div>
       </div>`;
-    document.body.appendChild(backdrop);
-    const close = () => backdrop.remove();
-    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
-    backdrop.querySelector("[data-close]").addEventListener("click", close);
-    backdrop.querySelector("form").addEventListener("submit", (e) => {
+
+    root.querySelector("#cfg-form").addEventListener("submit", (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
-      const nome = fd.get("nome").trim();
-      const cargo = fd.get("cargo").trim();
-      const setor = fd.get("setor");
-      if (!nome || !cargo || !setor) return;
-      upsertFuncionario({ id: fd.get("id"), nome, cargo, setor });
-      close();
-      renderAdmin(document.getElementById("view"));
-      toast("Funcionário salvo");
+      const dias = fd.getAll("dia");
+      store.set("config", { ...cfg, nome: fd.get("nome").trim(), diasUteis: dias });
+      store.set("serventia_nome", fd.get("nome").trim());
+      db.audit(window.currentUser(), "configuracao", "cartorio", null, fd.get("nome"));
+      ui.toast("Configurações salvas");
+    });
+
+    const tbody = root.querySelector("#user-tbody");
+    tbody.innerHTML = usuarios.map((u) => `<tr>
+      <td><strong>${esc(u.nome)}</strong></td>
+      <td>${esc(u.email)}</td>
+      <td>${PERFIL_LABEL[u.perfil] || u.perfil}</td>
+      <td><span class="badge ${u.ativo ? "ok" : "st-cancelado"}">${u.ativo ? "Ativo" : "Bloqueado"}</span></td>
+      <td><div class="row-actions">
+        <button class="icon-btn" data-uedit="${u.id}">${icon("edit")}</button>
+        <button class="icon-btn" data-ublock="${u.id}">${u.ativo ? icon("alert") : icon("check")}</button>
+      </div></td>
+    </tr>`).join("");
+
+    root.querySelector("#user-add").addEventListener("click", () => userModal(null));
+    tbody.addEventListener("click", (e) => {
+      const ed = e.target.closest("[data-uedit]");
+      const bl = e.target.closest("[data-ublock]");
+      if (ed) userModal(usuarios.find((u) => u.id === ed.dataset.uedit));
+      if (bl) {
+        const u = usuarios.find((x) => x.id === bl.dataset.ublock);
+        u.ativo = !u.ativo;
+        store.set("usuarios", usuarios);
+        db.audit(window.currentUser(), u.ativo ? "desbloquear_usuario" : "bloquear_usuario", u.nome, null, null);
+        renderSettings(root);
+      }
     });
   }
 
-  window.renderAdmin = renderAdmin;
+  function userModal(existing) {
+    const isNew = !existing;
+    const u = existing || { nome: "", email: "", perfil: "funcionario", ativo: true };
+    ui.modal(`
+      <h3>${isNew ? "Novo usuário" : "Editar usuário"}</h3>
+      <form class="form-grid" id="user-form">
+        <div class="form-field full"><label>Nome</label><input type="text" name="nome" value="${esc(u.nome)}" required></div>
+        <div class="form-field full"><label>E-mail</label><input type="email" name="email" value="${esc(u.email)}" required></div>
+        <div class="form-field full"><label>Perfil</label><select name="perfil">${PERFIS.map((p) => `<option value="${p.v}" ${p.v === u.perfil ? "selected" : ""}>${p.l}</option>`).join("")}</select></div>
+        <div class="form-field full actions"><button type="button" class="btn ghost" data-close>Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>
+      </form>`,
+      (fd, close) => {
+        const rec = { id: u.id || store.uid(), nome: fd.get("nome").trim(), email: fd.get("email").trim(), perfil: fd.get("perfil"), ativo: !!u.ativo };
+        const all = store.get("usuarios", []);
+        const idx = all.findIndex((x) => x.id === rec.id);
+        if (idx >= 0) all[idx] = rec; else all.push(rec);
+        store.set("usuarios", all);
+        db.audit(window.currentUser(), isNew ? "criar_usuario" : "editar_usuario", rec.nome, null, rec.perfil);
+        close(); renderSettings(document.getElementById("view")); ui.toast("Usuário salvo");
+      });
+  }
+
+  window.renderStaff = renderStaff;
+  window.renderSettings = renderSettings;
+  window.PERFIL_LABEL = PERFIL_LABEL;
 })();

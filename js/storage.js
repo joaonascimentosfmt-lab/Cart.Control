@@ -66,6 +66,105 @@
     return div.innerHTML;
   }
 
+  function nowISO() {
+    return new Date().toISOString();
+  }
+
+  function addBusinessDays(startISO, days) {
+    let d = parseISO(startISO + "T00:00:00");
+    let added = 0;
+    while (added < days) {
+      d.setDate(d.getDate() + 1);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) added++;
+    }
+    return toISODate(d);
+  }
+
+  const db = {
+    tables: ["protocols", "clients", "tasks", "emails", "appointments", "history", "audit", "notifications"],
+    seedMark: "cartometrics_seeded_v1",
+    table(name) {
+      return store.get(name, []);
+    },
+    write(name, rows) {
+      store.set(name, rows);
+    },
+    all(name) {
+      return this.table(name);
+    },
+    byId(name, id) {
+      return this.table(name).find((r) => r.id === id);
+    },
+    insert(name, row) {
+      const rows = this.table(name);
+      rows.push(row);
+      this.write(name, rows);
+      return row;
+    },
+    update(name, id, patch) {
+      const rows = this.table(name);
+      const idx = rows.findIndex((r) => r.id === id);
+      if (idx >= 0) {
+        rows[idx] = Object.assign({}, rows[idx], patch);
+        this.write(name, rows);
+        return rows[idx];
+      }
+      return null;
+    },
+    remove(name, id) {
+      this.write(name, this.table(name).filter((r) => r.id !== id));
+    },
+    audit(user, action, target, from, to) {
+      this.insert("audit", {
+        id: store.uid(), user: user || "sistema", action, target,
+        from: from != null ? from : null, to: to != null ? to : null,
+        at: nowISO(),
+      });
+    },
+  };
+
+  const prazo = {
+    NORMAL: "normal",
+    ATENCAO: "atencao",
+    URGENTE: "urgente",
+    HOJE: "hoje",
+    ATRASADO: "atrasado",
+    CONCLUIDO: "concluido",
+    status(prazoISO, concluido) {
+      if (concluido) return this.CONCLUIDO;
+      if (!prazoISO) return this.NORMAL;
+      const today = new Date(this._today() + "T00:00:00");
+      const d = new Date(prazoISO + "T00:00:00");
+      const diff = (d - today) / 86400000;
+      if (diff < 0) return this.ATRASADO;
+      if (diff === 0) return this.HOJE;
+      if (diff <= 1) return this.URGENTE;
+      if (diff <= 3) return this.ATENCAO;
+      return this.NORMAL;
+    },
+    diasRestantes(prazoISO) {
+      if (!prazoISO) return null;
+      const today = new Date(this._today() + "T00:00:00");
+      const d = new Date(prazoISO + "T00:00:00");
+      return Math.round((d - today) / 86400000);
+    },
+    label(s) {
+      return {
+        normal: "Normal", atencao: "Atenção", urgente: "Urgente",
+        hoje: "Vence hoje", atrasado: "Atrasado", concluido: "Concluído",
+      }[s] || s;
+    },
+    css(s) {
+      return { normal: "ok", atencao: "risco", urgente: "urgente", hoje: "urgente", atrasado: "vencido", concluido: "finalizado" }[s] || "ok";
+    },
+    _today() { return store.todayISO(); },
+  };
+
+  window.db = db;
+  window.prazo = prazo;
+  window.nowISO = nowISO;
+  window.addBusinessDays = addBusinessDays;
   window.store = store;
   window.toISODate = toISODate;
   window.formatDate = formatDate;

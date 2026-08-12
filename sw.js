@@ -1,4 +1,4 @@
-const CACHE = "controle-cart-v3";
+const CACHE = "cartometrics-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,9 +6,16 @@ const ASSETS = [
   "./css/style.css",
   "./js/icons.js",
   "./js/storage.js",
+  "./js/core.js",
+  "./js/ui.js",
   "./js/agenda.js",
-  "./js/planilha.js",
-  "./js/email.js",
+  "./js/protocols.js",
+  "./js/dashboard.js",
+  "./js/tasks.js",
+  "./js/clients.js",
+  "./js/emails.js",
+  "./js/reports.js",
+  "./js/audit.js",
   "./js/admin.js",
   "./js/app.js",
   "./icons/icon.svg",
