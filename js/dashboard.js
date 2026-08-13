@@ -30,6 +30,10 @@
     const agResposta = emails.filter((e) => e.statusResposta === "aguardando_resposta").length;
     const tempoMedio = core.tempoMedioConclusao();
 
+    const user = window.auth ? window.auth.current() : null;
+    const perfil = user ? user.perfil : "";
+    const mostraProdutividade = perfil === "admin" || perfil === "gestor";
+
     root.innerHTML = `
       <h2 class="page-title">Dashboard</h2>
 
@@ -60,6 +64,7 @@
         <div class="stat ok"><div class="value">${tempoMedio}d</div><div class="label">Tempo médio</div></div>
       </div>
 
+      ${mostraProdutividade ? `
       <div class="section-title">Produtividade por funcionário</div>
       <div class="card">
         <div class="table-wrap">
@@ -68,19 +73,21 @@
             <tbody id="prod-body"></tbody>
           </table>
         </div>
-      </div>`;
+      </div>` : ""}`;
 
-    const prod = core.prodFuncionario();
-    root.querySelector("#prod-body").innerHTML = prod.map((r) => `
-      <tr>
-        <td><strong>${esc(r.f.nome)}</strong></td>
-        <td>${r.protocolos}</td>
-        <td>${r.concluidos}</td>
-        <td>${r.atrasados}</td>
-        <td>${r.tarefasConcluidas}</td>
-        <td>${r.tarefasAtrasadas}</td>
-        <td><div class="bar"><div class="bar-fill" style="width:${r.indiceProdutividade}%"></div><span class="bar-label">${r.indiceProdutividade}%</span></div></td>
-      </tr>`).join("");
+    if (mostraProdutividade) {
+      const prod = core.prodFuncionario();
+      root.querySelector("#prod-body").innerHTML = prod.map((r) => `
+        <tr>
+          <td><strong>${esc(r.f.nome)}</strong></td>
+          <td>${r.protocolos}</td>
+          <td>${r.concluidos}</td>
+          <td>${r.atrasados}</td>
+          <td>${r.tarefasConcluidas}</td>
+          <td>${r.tarefasAtrasadas}</td>
+          <td><div class="bar"><div class="bar-fill" style="width:${r.indiceProdutividade}%"></div><span class="bar-label">${r.indiceProdutividade}%</span></div></td>
+        </tr>`).join("");
+    }
 
     core.checkAlerts();
     ui.renderNotifications();
