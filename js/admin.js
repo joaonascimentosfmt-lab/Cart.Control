@@ -23,15 +23,32 @@
       store.set("usuarios", defaults);
       return;
     }
-    const list = existing.map((u) => {
-      const esperado = u.perfil === "admin" ? HASH_ADMIN : HASH_FUNC;
-      if (u.senha !== esperado) return { ...u, perfil: u.perfil === "admin" ? "admin" : u.perfil, senha: esperado };
-      return u;
+    const porNome = new Map(existing.map((u) => [String(u.nome || "").trim().toLowerCase(), u]));
+    const reconstruidos = [];
+    staff.forEach((f) => {
+      const chave = String(f.nome || "").trim().toLowerCase();
+      const base = porNome.get(chave) || {};
+      reconstruidos.push({
+        id: base.id || "u" + f.id,
+        nome: f.nome,
+        email: f.email || "",
+        perfil: f.cargo === "Tabelião" ? "gestor" : "funcionario",
+        ativo: base.ativo !== undefined ? base.ativo : true,
+        senha: HASH_FUNC,
+      });
     });
-    if (!list.some((u) => u.email === "admin@carto.com")) {
-      list.unshift(emp("Administrador", "admin@carto.com", "admin", HASH_ADMIN));
-    }
-    store.set("usuarios", list);
+    const adminOld = existing.find((u) => u.email === "admin@carto.com");
+    const lista = [];
+    if (adminOld) lista.push({ ...adminOld, perfil: "admin", senha: HASH_ADMIN });
+    else lista.push(emp("Administrador", "admin@carto.com", "admin", HASH_ADMIN));
+    const nomesStaff = new Set(staff.map((f) => String(f.nome || "").trim().toLowerCase()));
+    existing.forEach((u) => {
+      if (u.email === "admin@carto.com") return;
+      const chave = String(u.nome || "").trim().toLowerCase();
+      if (!nomesStaff.has(chave)) lista.push({ ...u, senha: u.perfil === "admin" ? HASH_ADMIN : HASH_FUNC });
+    });
+    lista.push(...reconstruidos);
+    store.set("usuarios", lista);
   }
 
   function renderStaff(root) {

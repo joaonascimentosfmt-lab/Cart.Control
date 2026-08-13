@@ -1,4 +1,4 @@
-const CACHE = "cartometrics-v6";
+const CACHE = "cartometrics-v7";
 const ASSETS = [
   "./",
   "./index.html",
