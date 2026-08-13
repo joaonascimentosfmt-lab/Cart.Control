@@ -58,7 +58,7 @@
         if (!user || user.senha !== hash) {
           btn.disabled = false;
           btn.textContent = "Entrar";
-          msg.textContent = "E-mail ou senha inválidos.";
+          msg.textContent = "E-mail ou senha inválidos. Credenciais demo: admin@carto.com · admin123 | funcionário · 123456";
           msg.hidden = false;
           return;
         }
@@ -75,6 +75,11 @@
         db.audit(user.nome, "login", user.email, null, null);
         el.remove();
         window.__afterLogin();
+      }).catch(() => {
+        btn.disabled = false;
+        btn.textContent = "Entrar";
+        msg.textContent = "Erro ao processar a senha. Abra pelo GitHub Pages (HTTPS) e tente novamente.";
+        msg.hidden = false;
       });
     });
   }

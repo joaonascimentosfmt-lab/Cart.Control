@@ -12,25 +12,26 @@
 
   function seedUsuarios() {
     if (window.core && window.core.protGetAll) window.core.protGetAll();
-    const existing = store.get("usuarios", null);
-    if (!existing) {
-      const staff = store.get("funcionarios", []);
-      const admins = [
-        { id: store.uid(), nome: "Administrador", email: "admin@carto.com", perfil: "admin", ativo: true, senha: HASH_ADMIN },
-        ...staff.map((f) => ({ id: "u" + f.id, nome: f.nome, email: f.email || "", perfil: f.cargo === "Tabelião" ? "gestor" : "funcionario", ativo: true, senha: HASH_FUNC })),
-      ];
-      store.set("usuarios", admins);
+    const staff = store.get("funcionarios", []);
+    const emp = (nome, email, perfil, senha) => ({ id: store.uid(), nome, email, perfil, ativo: true, senha });
+    const defaults = [
+      emp("Administrador", "admin@carto.com", "admin", HASH_ADMIN),
+      ...staff.map((f) => emp(f.nome, f.email || "", f.cargo === "Tabelião" ? "gestor" : "funcionario", HASH_FUNC)),
+    ];
+    const existing = store.get("usuarios", []);
+    if (!Array.isArray(existing) || existing.length === 0) {
+      store.set("usuarios", defaults);
       return;
     }
-    let mudou = false;
-    const atualizados = existing.map((u) => {
-      if (!u.senha) {
-        mudou = true;
-        return { ...u, senha: u.perfil === "admin" ? HASH_ADMIN : HASH_FUNC };
-      }
+    const list = existing.map((u) => {
+      const esperado = u.perfil === "admin" ? HASH_ADMIN : HASH_FUNC;
+      if (u.senha !== esperado) return { ...u, perfil: u.perfil === "admin" ? "admin" : u.perfil, senha: esperado };
       return u;
     });
-    if (mudou) store.set("usuarios", atualizados);
+    if (!list.some((u) => u.email === "admin@carto.com")) {
+      list.unshift(emp("Administrador", "admin@carto.com", "admin", HASH_ADMIN));
+    }
+    store.set("usuarios", list);
   }
 
   function renderStaff(root) {
