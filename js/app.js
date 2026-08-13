@@ -2,22 +2,17 @@
   const view = document.getElementById("view");
   const links = document.querySelectorAll(".side-link");
 
-  function getPerfil() {
-    const u = store.get("session_user", "Admin");
-    const usuarios = store.get("usuarios", null);
-    if (usuarios) {
-      const found = usuarios.find((x) => x.nome === u || x.email === u);
-      if (found) return found.perfil;
-    }
-    return "admin";
-  }
-
   const ACCESS = {
     admin: ["dashboard", "protocols", "agenda", "emails", "tasks", "clients", "reports", "staff", "audit", "settings"],
     gestor: ["dashboard", "protocols", "agenda", "emails", "tasks", "clients", "reports", "staff"],
-    funcionario: ["dashboard", "agenda", "emails", "tasks"],
+    funcionario: ["dashboard", "protocols", "agenda", "emails", "tasks", "clients"],
     visualizacao: ["dashboard", "protocols", "clients", "reports"],
   };
+  window.ACCESS = ACCESS;
+
+  function perfilAtual() {
+    return (store.get("session_perfil", "funcionario")) || "funcionario";
+  }
 
   function applyMenu(perfil) {
     links.forEach((l) => {
@@ -27,13 +22,23 @@
   }
 
   function navigate() {
+    const user = auth.current();
+    const perfil = user ? user.perfil : perfilAtual();
+    const allow = ACCESS[perfil] || ACCESS.funcionario;
+
     let hash = location.hash.replace("#/", "").split("?")[0];
-    const perfil = getPerfil();
     links.forEach((b) => b.classList.toggle("is-active", b.dataset.route === hash));
+
     if (hash.startsWith("protocol/")) {
+      if (!allow.includes("protocols")) { location.hash = "#/dashboard"; return; }
       const id = hash.split("/")[1];
       return renderProtocolDetail(view, id);
     }
+    if (!allow.includes(hash)) {
+      location.hash = "#/dashboard";
+      return;
+    }
+
     const map = {
       dashboard: () => renderDashboard(view),
       protocols: () => renderProtocolos(view),
@@ -46,38 +51,32 @@
       audit: () => renderAudit(view),
       settings: () => renderSettings(view),
     };
-    const handler = map[hash] || map.dashboard;
-    handler();
+    (map[hash] || map.dashboard)();
   }
 
   window.addEventListener("hashchange", navigate);
 
   function setUser() {
-    const name = store.get("session_user", "Admin");
-    const perfil = window.PERFIL_LABEL ? window.PERFIL_LABEL[getPerfil()] : "";
-    document.getElementById("user-name").textContent = perfil ? `${name} · ${perfil}` : name;
-    applyMenu(getPerfil());
+    const user = auth.current();
+    if (!user) return;
+    const perfil = window.PERFIL_LABEL ? window.PERFIL_LABEL[user.perfil] : "";
+    document.getElementById("user-name").textContent = `${user.nome} · ${perfil}`;
+    applyMenu(user.perfil);
   }
 
-  document.getElementById("user-chip").addEventListener("click", () => {
-    const perfis = ["admin", "gestor", "funcionario", "visualizacao"];
-    const atual = getPerfil();
-    const prox = perfis[(perfis.indexOf(atual) + 1) % perfis.length];
-    store.set("session_perfil", prox);
-    db.audit("manual", "trocar_perfil_demo", "perfil", atual, prox);
-    location.reload();
-  });
-
-  document.getElementById("bell-btn").addEventListener("click", () => document.getElementById("notif-panel").hidden = false);
-
-  window.addEventListener("online", () => ui.toast("Conectado"));
-  window.addEventListener("offline", () => ui.toast("Offline — dados locais", "warn"));
-
-  if (navigator.serviceWorker) {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  function boot() {
+    setUser();
+    ui.setupSearch();
+    navigate();
+    document.getElementById("logout-btn").addEventListener("click", () => auth.logout());
+    const bell = document.getElementById("bell-btn");
+    if (bell) bell.addEventListener("click", () => document.getElementById("notif-panel").hidden = false);
+    window.addEventListener("online", () => ui.toast("Conectado"));
+    window.addEventListener("offline", () => ui.toast("Offline — dados locais", "warn"));
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    }
   }
 
-  ui.setupSearch();
-  setUser();
-  navigate();
+  auth.requireLogin(boot);
 })();

@@ -1,4 +1,4 @@
-const CACHE = "cartometrics-v4";
+const CACHE = "cartometrics-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -17,6 +17,7 @@ const ASSETS = [
   "./js/reports.js",
   "./js/audit.js",
   "./js/admin.js",
+  "./js/auth.js",
   "./js/app.js",
   "./icons/icon.svg",
   "./icons/icon-192.png",

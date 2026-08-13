@@ -7,13 +7,30 @@
   ];
   const PERFIL_LABEL = Object.fromEntries(PERFIS.map((p) => [p.v, p.l]));
 
+  const HASH_ADMIN = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"; // admin123
+  const HASH_FUNC = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"; // 123456
+
   function seedUsuarios() {
-    if (store.get("usuarios", null)) return;
-    const staff = store.get("funcionarios", []);
-    store.set("usuarios", [
-      { id: store.uid(), nome: "Administrador", email: "admin@carto.com", perfil: "admin", ativo: true },
-      ...staff.map((f) => ({ id: "u" + f.id, nome: f.nome, email: f.email || "", perfil: f.cargo === "Tabelião" ? "gestor" : "funcionario", ativo: true })),
-    ]);
+    if (window.core && window.core.protGetAll) window.core.protGetAll();
+    const existing = store.get("usuarios", null);
+    if (!existing) {
+      const staff = store.get("funcionarios", []);
+      const admins = [
+        { id: store.uid(), nome: "Administrador", email: "admin@carto.com", perfil: "admin", ativo: true, senha: HASH_ADMIN },
+        ...staff.map((f) => ({ id: "u" + f.id, nome: f.nome, email: f.email || "", perfil: f.cargo === "Tabelião" ? "gestor" : "funcionario", ativo: true, senha: HASH_FUNC })),
+      ];
+      store.set("usuarios", admins);
+      return;
+    }
+    let mudou = false;
+    const atualizados = existing.map((u) => {
+      if (!u.senha) {
+        mudou = true;
+        return { ...u, senha: u.perfil === "admin" ? HASH_ADMIN : HASH_FUNC };
+      }
+      return u;
+    });
+    if (mudou) store.set("usuarios", atualizados);
   }
 
   function renderStaff(root) {
@@ -207,27 +224,38 @@
 
   function userModal(existing) {
     const isNew = !existing;
-    const u = existing || { nome: "", email: "", perfil: "funcionario", ativo: true };
+    const u = existing || { nome: "", email: "", perfil: "funcionario", ativo: true, senha: "" };
     ui.modal(`
       <h3>${isNew ? "Novo usuário" : "Editar usuário"}</h3>
       <form class="form-grid" id="user-form">
         <div class="form-field full"><label>Nome</label><input type="text" name="nome" value="${esc(u.nome)}" required></div>
         <div class="form-field full"><label>E-mail</label><input type="email" name="email" value="${esc(u.email)}" required></div>
         <div class="form-field full"><label>Perfil</label><select name="perfil">${PERFIS.map((p) => `<option value="${p.v}" ${p.v === u.perfil ? "selected" : ""}>${p.l}</option>`).join("")}</select></div>
+        <div class="form-field full"><label>Senha</label><input type="password" name="senha" ${isNew ? "required" : ""} placeholder="${isNew ? "Defina uma senha" : "Deixe em branco para manter a atual"}" autocomplete="new-password"></div>
         <div class="form-field full actions"><button type="button" class="btn ghost" data-close>Cancelar</button><button type="submit" class="btn primary">Salvar</button></div>
       </form>`,
       (fd, close) => {
-        const rec = { id: u.id || store.uid(), nome: fd.get("nome").trim(), email: fd.get("email").trim(), perfil: fd.get("perfil"), ativo: !!u.ativo };
+        const senha = fd.get("senha").toString();
+        const rec = { id: u.id || store.uid(), nome: fd.get("nome").trim(), email: fd.get("email").trim(), perfil: fd.get("perfil"), ativo: u.ativo !== undefined ? u.ativo : true };
         const all = store.get("usuarios", []);
         const idx = all.findIndex((x) => x.id === rec.id);
-        if (idx >= 0) all[idx] = rec; else all.push(rec);
-        store.set("usuarios", all);
-        db.audit(window.currentUser(), isNew ? "criar_usuario" : "editar_usuario", rec.nome, null, rec.perfil);
-        close(); renderSettings(document.getElementById("view")); ui.toast("Usuário salvo");
+        const save = (novo) => {
+          if (idx >= 0) all[idx] = novo; else all.push(novo);
+          store.set("usuarios", all);
+          db.audit(window.currentUser(), isNew ? "criar_usuario" : "editar_usuario", rec.nome, null, rec.perfil);
+          close(); renderSettings(document.getElementById("view")); ui.toast("Usuário salvo");
+        };
+        if (senha) {
+          sha256hex(senha).then((hash) => save({ ...rec, senha: hash }));
+        } else {
+          const prev = idx >= 0 ? all[idx] : null;
+          save(prev ? { ...rec, senha: prev.senha } : rec);
+        }
       });
   }
 
   window.renderStaff = renderStaff;
   window.renderSettings = renderSettings;
+  window.seedUsuarios = seedUsuarios;
   window.PERFIL_LABEL = PERFIL_LABEL;
 })();
